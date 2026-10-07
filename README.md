@@ -59,6 +59,13 @@ to pass, and listening decides between voices that pass it.
 | voice | CER | passed |
 |---|---|---|
 | espeak-ng 1.52 (`-v eo`) | 10.0% | 8/16 |
+| Piper, base model untrained on Esperanto | 45.5% | 0/16 |
+| **Piper fine-tuned on 4.9 min of *Karlo*, 3 h on an 8-core CPU** | **6.4%** | **13/16** |
+
+The 4.9-minute voice already beats espeak-ng. Its three remaining failures
+all involve the trilled `r` (*rivero* → "tivero"), the one frequent
+Esperanto sound the English base never learned — the target of
+`tools/seed_embeddings.py`.
 
 Typical espeak failures: *Esperanto* heard as "espemanco", *ĵaŭde* as
 "laŭde", *vespere* as "mezreme" — the confusions a learner hears too.
