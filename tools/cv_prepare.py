@@ -21,6 +21,9 @@ def main():
     ap.add_argument("speaker_dir")
     ap.add_argument("out")
     ap.add_argument("--max-clips", type=int, default=2000)
+    ap.add_argument("--exclude", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                      "..", "eval", "sentences.txt"),
+                    help="sentences never to include (default: the test set)")
     ap.add_argument("--top-db", type=float, default=35,
                     help="silence trim threshold; Common Voice clips have long silent edges")
     args = ap.parse_args()
@@ -29,10 +32,22 @@ def main():
     import numpy as np
     import soundfile as sf
 
+    import re
+    import unicodedata
+
+    def key(s):
+        s = unicodedata.normalize("NFC", s.lower())
+        return re.sub(r"\s+", " ", re.sub(r"[^a-zĉĝĥĵŝŭ ]", " ", s)).strip()
+
+    # Never train on the test set: some test sentences also exist in Common
+    # Voice ("Esperanto estas internacia lingvo." was recorded once).
+    held_out = {key(l) for l in open(args.exclude, encoding="utf-8") if l.strip()}
+
     os.makedirs(os.path.join(args.out, "wav"), exist_ok=True)
-    rows = [l.rstrip("\n").split("|", 1)
-            for l in open(os.path.join(args.speaker_dir, "metadata.csv"), encoding="utf-8")
-            if "|" in l][: args.max_clips]
+    rows = [r for r in (l.rstrip("\n").split("|", 1)
+                        for l in open(os.path.join(args.speaker_dir, "metadata.csv"), encoding="utf-8")
+                        if "|" in l)
+            if key(r[1]) not in held_out][: args.max_clips]
     n = total = 0
     with open(os.path.join(args.out, "metadata.csv"), "w", encoding="utf-8") as meta:
         for cid, text in rows:
