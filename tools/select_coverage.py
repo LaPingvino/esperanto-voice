@@ -24,6 +24,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("data")
     ap.add_argument("--minutes", type=float, required=True)
+    ap.add_argument("--max-sec", type=float, default=12,
+                    help="ignore longer clips (match experiment.py --max-clip-sec)")
     args = ap.parse_args()
 
     import soundfile as sf
@@ -34,6 +36,8 @@ def main():
     for line in open(os.path.join(args.data, "metadata.csv"), encoding="utf-8"):
         cid, text = line.rstrip("\n").split("|", 1)
         dur = sf.info(os.path.join(args.data, "wav", cid + ".wav")).duration
+        if dur > args.max_sec:
+            continue
         seq = [p for sent in ph.phonemize("eo", text) for p in sent]
         units = set(seq) | {a + b for a, b in zip(seq, seq[1:])}
         clips.append((cid, text, dur, units))

@@ -45,16 +45,23 @@ BASE_ARGS = [
 ]
 
 
-def subset(data_dir, minutes, out_csv):
+def subset(data_dir, source_csv, minutes, max_sec, out_csv):
+    """Clips from source_csv (ids with or without .wav), skipping any longer
+    than max_sec, up to `minutes` of audio (0 = all)."""
     import soundfile as sf
     rows, total = [], 0.0
-    with open(os.path.join(data_dir, "metadata.csv"), encoding="utf-8") as f:
+    with open(source_csv, encoding="utf-8") as f:
         for line in f:
+            if not line.strip():
+                continue
             cid, text = line.rstrip("\n").split("|", 1)
-            dur = sf.info(os.path.join(data_dir, "wav", cid + ".wav")).duration
-            if total + dur > minutes * 60:
+            wav = cid if cid.endswith(".wav") else cid + ".wav"
+            dur = sf.info(os.path.join(data_dir, "wav", wav)).duration
+            if dur > max_sec:
+                continue   # VITS memory grows with the longest clip in a batch
+            if minutes and total + dur > minutes * 60:
                 break
-            rows.append((cid + ".wav", text))
+            rows.append((wav, text))
             total += dur
     with open(out_csv, "w", encoding="utf-8") as f:
         for wav, text in rows:
@@ -72,33 +79,23 @@ def main():
     ap.add_argument("--name", required=True)
     ap.add_argument("--runs", default="runs")
     ap.add_argument("--base", default="base/base_model.ckpt")
-    ap.add_argument("--batch-size", type=int, default=8)
+    ap.add_argument("--batch-size", type=int, default=4)
+    ap.add_argument("--max-clip-sec", type=float, default=12,
+                    help="skip longer clips; long clips dominate training memory")
     ap.add_argument("--extra", nargs=argparse.REMAINDER, default=[],
                     help="further piper.train arguments, passed through")
     args = ap.parse_args()
 
     run = os.path.join(args.runs, args.name)
     os.makedirs(run, exist_ok=True)
-    if args.csv:
-        import soundfile as sf
-        shutil.copy(args.csv, os.path.join(run, "metadata.csv"))
-        rows = [l.split("|", 1)[0] for l in open(args.csv, encoding="utf-8") if l.strip()]
-        n = len(rows)
-        got_min = sum(sf.info(os.path.join(args.data, "wav", r)).duration for r in rows) / 60
-    else:
-        n, got_min = subset(args.data, args.minutes, os.path.join(run, "metadata.csv"))
+    n, got_min = subset(args.data, args.csv or os.path.join(args.data, "metadata.csv"),
+                        args.minutes, args.max_clip_sec, os.path.join(run, "metadata.csv"))
     print(f"[{args.name}] {n} clips, {got_min:.1f} min of audio", flush=True)
 
     py = sys.executable
     t0 = time.time()
-    # piper.train's second ModelCheckpoint watches "val_mos", which is never
-    # logged with --model.mos_metric none, and Lightning raises instead of
-    # skipping. Drop that callback before handing over to piper's CLI.
-    launcher = ("import sys, piper.train.__main__ as m; "
-                "m._DEFAULT_CALLBACKS[:] = [c for c in m._DEFAULT_CALLBACKS "
-                "if getattr(c, 'monitor', None) != 'val_mos']; "
-                "sys.argv[0] = 'piper.train'; m.main()")
-    cmd = [py, "-c", launcher, "fit",
+    cmd = [py, os.path.join(HERE, "piper_train.py"), "fit",
+           "--trainer.enable_progress_bar", "false",
            "--data.voice_name", f"eo-{args.name}",
            "--data.csv_path", os.path.join(run, "metadata.csv"),
            "--data.audio_dir", os.path.join(args.data, "wav"),
