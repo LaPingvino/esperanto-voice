@@ -30,6 +30,9 @@ go a long way.
 |---|---|
 | `tools/prepare_librivox.py` | Cut a LibriVox audiobook + Gutenberg text into sentence clips (CTC segmentation with an Esperanto wav2vec2 model). Unread text, like exercise questions, is dropped by confidence. |
 | `tools/evaltest.py` | Regression harness: synthesize the test sentences, transcribe with Esperanto ASR, report per-case character error rate (CER) as PASS/FAIL. |
+| `tools/experiment.py` | One iteration as one command: subset → fine-tune from the CC BY base → export ONNX → test → one row in `results.tsv`. |
+| `tools/select_coverage.py` | Pick the N minutes of clips that cover the most phonemes and phoneme pairs (text only). 5 min this way covers 438/481 units vs 344 for "the first 5 minutes". |
+| `tools/seed_embeddings.py` | Text-only model surgery: start sounds English never trained (trill `r`, glide `ʲ`, `x`) from their nearest English neighbours. |
 | `eval/sentences.txt` | Held-out test sentences covering every accented letter and stress pattern. |
 | `espeak-ng/eo-glide-onset.patch` | *Experimental, not proposed upstream.* Makes `j`/`ŭ` before a vowel a syllable onset (`lerne-jo`) instead of a glide (`lernej-o`). Both occur in real speech, so this is a style choice, not a bug fix. |
 | `docs/SOURCES.md` | Every data source, model and license used or considered. |
