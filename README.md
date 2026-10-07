@@ -36,6 +36,7 @@ go a long way.
 | `eval/sentences.txt` | Held-out test sentences covering every accented letter and stress pattern. |
 | `espeak-ng/eo-glide-onset.patch` | *Experimental, not proposed upstream.* Makes `j`/`ŭ` before a vowel a syllable onset (`lerne-jo`) instead of a glide (`lernej-o`). Both occur in real speech, so this is a style choice, not a bug fix. |
 | `docs/SOURCES.md` | Every data source, model and license used or considered. |
+| `docs/WORKING-WITH-AN-LLM.md` | How this project used a coding agent effectively — lessons for similar work. |
 
 ## The test harness
 
