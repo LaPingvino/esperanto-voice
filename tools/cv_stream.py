@@ -87,12 +87,17 @@ def cmd_speakers(args):
 
 
 def cmd_clips(args):
-    wanted = {l.strip() for l in open(args.speakers) if l.strip()}
+    wanted = {l.split()[0] for l in open(args.speakers) if l.strip()}
     keep = {}
+    per = collections.Counter()
     for r in read_tsv(os.path.join(args.outdir, "validated.tsv")):
-        if r["client_id"] in wanted and int(r.get("up_votes") or 0) >= args.min_up \
+        cid = r["client_id"]
+        if cid in wanted and int(r.get("up_votes") or 0) >= args.min_up \
                 and int(r.get("down_votes") or 0) == 0:
-            keep[r["path"]] = (r["client_id"], r["sentence"])
+            if args.per_speaker and per[cid] >= args.per_speaker:
+                continue
+            per[cid] += 1
+            keep[r["path"]] = (cid, r["sentence"])
     print(f"extracting {len(keep)} clips from {len(wanted)} speakers", file=sys.stderr)
     metas = {}
     n = 0
@@ -126,6 +131,8 @@ def main():
     a = sub.add_parser("clips"); a.add_argument("archive"); a.add_argument("outdir")
     a.add_argument("--speakers", required=True)
     a.add_argument("--min-up", type=int, default=2)
+    a.add_argument("--per-speaker", type=int, default=0,
+                   help="at most N clips per speaker (0 = all): a profiling sample")
     args = ap.parse_args()
     {"meta": cmd_meta, "speakers": cmd_speakers, "clips": cmd_clips}[args.cmd](args)
 
