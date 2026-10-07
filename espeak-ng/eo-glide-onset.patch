@@ -1,0 +1,36 @@
+--- a/dictsource/eo_rules
++++ b/dictsource/eo_rules
+@@ -17,6 +17,8 @@
+         a          a
+         aj         aI
+         aŭ         aU
++        aj (A      aj        // j before a vowel starts the next syllable: ma-jo
++        aŭ (A      aw        // na-ŭa
+ 
+ 
+ .group b
+@@ -43,6 +45,8 @@
+         e          e
+         ej         eI
+         eŭ         eU
++        ej (A      ej        // lerne-jo, preĝe-jo
++        eŭ (A      ew
+ 
+ .group f
+      _) f (_       fo
+@@ -103,6 +107,7 @@
+      _) o (_       o
+         o          o
+         oj         oI
++        oj (A      oj        // fo-joj, lo-ja-la
+      -) o (_       %o
+      -) oj (_      %oI
+      -) on (_      %on
+@@ -156,6 +161,7 @@
+      _) u (_       u
+         u          u
+         uj         uI
++        uj (A      uj        // ĉiu-ja-re
+ 
+ 
+ .group v
