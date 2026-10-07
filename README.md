@@ -45,7 +45,7 @@ python tools/evaltest.py espeak piper:eo-voice.onnx     # compare voices
 --- FAIL: espeak/10 (CER 21.4%)
     want: la ĥoro kantis ĵaŭde vespere en la preĝejo
     got:  la ĵolo kantis laŭde mezreme en apreĝejo
-FAIL  espeak                                   CER 15.4%  8/16 passed
+FAIL  espeak                                   CER 10.0%  8/16 passed
 ```
 
 CER measures intelligibility, not naturalness: it's the gate every change has
@@ -55,9 +55,10 @@ to pass, and listening decides between voices that pass it.
 
 | voice | CER | passed |
 |---|---|---|
-| espeak-ng 1.52 (`-v eo`) | 15.4%* | 8/16 |
+| espeak-ng 1.52 (`-v eo`) | 10.0% | 8/16 |
 
-\* measured before two test sentences had their years spelled out; to be re-run.
+Typical espeak failures: *Esperanto* heard as "espemanco", *ĵaŭde* as
+"laŭde", *vespere* as "mezreme" — the confusions a learner hears too.
 
 ## Status
 
