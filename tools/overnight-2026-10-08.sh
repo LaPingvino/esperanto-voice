@@ -11,15 +11,9 @@ log() { echo "$(date +%H:%M) $*" | tee -a overnight.log; }
 
 log "=== overnight pipeline start"
 
-# 1. Wait for profiling (150 speakers + header = 151 lines), or 20 min without progress.
-last=0; idle=0
-while :; do
-  n=$(wc -l < $DS/profiles.tsv)
-  [ "$n" -ge 151 ] && break
-  if [ "$n" = "$last" ]; then idle=$((idle+1)); else idle=0; last=$n; fi
-  [ $idle -ge 40 ] && { log "profiling stalled at $n lines; continuing with what we have"; break; }
-  sleep 30
-done
+# 1. Wait for profiling: the profiler touches profiles.done when it exits.
+#    Only speakers with >= 5 validated hours are profiled (48 of them).
+while [ ! -e $DS/profiles.done ]; do sleep 30; done
 log "1 profiling: $(($(wc -l < $DS/profiles.tsv)-1)) speakers profiled"
 
 # 2. Pick voices; relax the filters if nobody passes.
@@ -65,7 +59,7 @@ $E --data data/karlo --minutes 5 --train-minutes 90 --name karlo5-breathfix $BRE
     >> overnight.log 2>&1; log "6 $(tail -1 overnight.log)"
 for g in male female; do
   [ -s data/cv-$g-cover30.csv ] || continue
-  $E --data data/cv-$g --csv data/cv-$g-cover30.csv --train-minutes 120 --name cv-$g-30 $BREATH \
+  $E --data data/cv-$g --csv data/cv-$g-cover30.csv --train-minutes 150 --name cv-$g-30 $BREATH \
       >> overnight.log 2>&1; log "6 $(tail -1 overnight.log)"
 done
 
