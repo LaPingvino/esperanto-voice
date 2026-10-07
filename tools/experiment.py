@@ -82,6 +82,14 @@ def main():
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--max-clip-sec", type=float, default=12,
                     help="skip longer clips; long clips dominate training memory")
+    ap.add_argument("--phase", choices=["full", "text"], default="full",
+                    help="text: train only the language side (see piper_train.py); "
+                         "much faster per step, voice timbre stays the base's")
+    ap.add_argument("--fast", action="store_true",
+                    help="full phase speedups: no MRD discriminator, half-length "
+                         "training segments")
+    ap.add_argument("--val-every", type=int, default=1,
+                    help="validate (and checkpoint) every N epochs")
     ap.add_argument("--extra", nargs=argparse.REMAINDER, default=[],
                     help="further piper.train arguments, passed through")
     args = ap.parse_args()
@@ -113,9 +121,16 @@ def main():
            if args.train_minutes < 60 else
            f"00:{args.train_minutes // 60:02d}:{args.train_minutes % 60:02d}:00",
            "--trainer.default_root_dir", run,
-           ] + BASE_ARGS + args.extra
+           "--trainer.check_val_every_n_epoch", str(args.val_every),
+           ] + BASE_ARGS
+    if args.fast:
+        # Later flags override BASE_ARGS. segment_size must be a multiple of
+        # hop_length (256).
+        cmd += ["--model.use_mrd", "false", "--model.segment_size", "4096"]
+    cmd += args.extra
+    env = dict(os.environ, PIPER_PHASE=args.phase)
     with open(os.path.join(run, "train.log"), "w") as log:
-        rc = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
+        rc = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, env=env).returncode
     train_min = (time.time() - t0) / 60
     ckpts = sorted(glob.glob(os.path.join(run, "lightning_logs", "*", "checkpoints", "last.ckpt")),
                    key=os.path.getmtime)
