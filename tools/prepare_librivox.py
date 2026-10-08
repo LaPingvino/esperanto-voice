@@ -161,7 +161,15 @@ def main():
         params.index_duration = len(wav16) / lpz.shape[0] / 16000
         params.replace_spaces_with_blanks = False
         gt, utt_begin = prepare_text(params, norm)
-        timings, char_probs, _ = ctc_segmentation(params, lpz, gt)
+        try:
+            timings, char_probs, _ = ctc_segmentation(params, lpz, gt)
+        except AssertionError as e:
+            # Text and audio don't belong together (e.g. front matter or a
+            # table of contents the narrator didn't read): skip the chapter,
+            # don't lose the whole book.
+            log(f"  {audio[ci]}: skipped ({e}; {len(sents)} sentences vs "
+                f"{len(wav16)/16000:.0f} s audio)")
+            continue
         segs = determine_utterance_segments(params, utt_begin, char_probs, timings, norm)
 
         for si, ((start, end, score), sent) in enumerate(zip(segs, sents)):
