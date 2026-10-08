@@ -20,6 +20,12 @@ import os
 # target phoneme  <-  source phonemes (averaged), all from the base id map
 SEEDS = {
     "r": ["ɹ", "ɾ"],      # trill: English has the approximant and the tap
+    # espeak's Esperanto writes about half of all r's as ɾ (reĝo, tre,
+    # rapide), and the base learned ɾ as the American flap — the d-like sound
+    # of "butter". In Esperanto r and ɾ are one sound, so ɾ gets the same
+    # start as r. Without this, "reĝo" came out with a d-like r that blurred
+    # the following ĝ toward ĵ.
+    "ɾ": ["ɹ", "ɾ"],
     "x": ["h", "k"],      # ĥ: velar fricative, between the two
     # English espeak almost never emits plain a/e/o (it uses æ ɛ ɑ ɔ and
     # diphthongs), so in the base model these three — Esperanto's most
