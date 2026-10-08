@@ -75,6 +75,25 @@ class SaveOnEnd(Callback):
             print(f"saved final checkpoint at step {trainer.global_step} → {path}", flush=True)
 
 
+class SaveLatest(Callback):
+    """Write latest.ckpt every PIPER_LATEST_EVERY epochs (default 5).
+
+    Lightning's last.ckpt is only rewritten when the monitored val_mel
+    improves; on a tiny validation set that can stall for many epochs, so
+    mid-run peeks silently got stale checkpoints.
+    """
+
+    def __init__(self):
+        self.every = int(os.environ.get("PIPER_LATEST_EVERY", "5"))
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        cb = trainer.checkpoint_callback
+        if self.every and cb is not None and cb.dirpath and (trainer.current_epoch + 1) % self.every == 0:
+            tmp = os.path.join(cb.dirpath, "latest.ckpt.tmp")
+            trainer.save_checkpoint(tmp)
+            os.replace(tmp, os.path.join(cb.dirpath, "latest.ckpt"))   # atomic: peeks never see half a file
+
+
 class FreezeAcoustic(Callback):
     """Text phase: freeze the language-independent acoustic modules."""
 
@@ -146,6 +165,7 @@ def main():
             c.save_top_k = top_k
     callbacks.append(ProgressPrinter())
     callbacks.append(SaveOnEnd())
+    callbacks.append(SaveLatest())
 
     if os.environ.get("PIPER_PHASE") == "text":
         VitsModel.training_step = text_phase_training_step
