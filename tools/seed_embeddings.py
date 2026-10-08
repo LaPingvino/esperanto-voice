@@ -20,9 +20,24 @@ import os
 # target phoneme  <-  source phonemes (averaged), all from the base id map
 SEEDS = {
     "r": ["ɹ", "ɾ"],      # trill: English has the approximant and the tap
-    "ʲ": ["j"],           # hiatus glide in lia, kiel, tiu
     "x": ["h", "k"],      # ĥ: velar fricative, between the two
+    # English espeak almost never emits plain a/e/o (it uses æ ɛ ɑ ɔ and
+    # diphthongs), so in the base model these three — Esperanto's most
+    # frequent vowels — have near-empty embeddings (norm ~0.23 vs ~0.9).
+    "a": ["ɑ"],
+    "e": ["ɛ"],
+    "o": ["ɔ"],
+    # Hiatus glide Piper's espeak inserts in lia, kiel, hodiaŭ. Seeding it
+    # from j made consonants sound palatalized ("Russian"); from i it stays
+    # a smooth transition.
+    "ʲ": ["i"],
+    # A lone ʊ only occurs as the glide of eŭ (aŭ becomes the merged aʊ
+    # token). The base learned ʊ as the English vowel of "book", which next
+    # to e drifts toward ü; Esperanto wants e + a short w-like glide.
+    "ʊ": ["w"],
 }
+# v0.2 candidate used: r ← ɹ,ɾ; ʲ ← j; x ← h,k   (--only r,ʲ,x reproduces it
+# except for the ʲ donor)
 
 
 def main():
@@ -31,6 +46,8 @@ def main():
     ap.add_argument("dst")
     ap.add_argument("--config", default=None,
                     help="config.json with phoneme_id_map (default: next to src)")
+    ap.add_argument("--only", default="",
+                    help="comma-separated subset of target phonemes to seed (default: all)")
     args = ap.parse_args()
 
     import torch
@@ -41,7 +58,10 @@ def main():
     key = next(k for k in sd if k.endswith("enc_p.emb.weight"))
     emb = sd[key]
     norms = emb.norm(dim=1)
+    only = set(filter(None, args.only.split(",")))
     for dst, srcs in SEEDS.items():
+        if only and dst not in only:
+            continue
         if dst not in idmap or not all(s in idmap for s in srcs):
             print(f"skip {dst}: not in phoneme map")
             continue
