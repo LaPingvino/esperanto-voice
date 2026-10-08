@@ -57,6 +57,8 @@ def main():
                     help="only Common Voice sentences nobody has recorded yet (clips_count == 0)")
     ap.add_argument("--extra-text", nargs="*", default=[],
                     help="plain-text files, one sentence per line, added to the pool (e.g. a PD novel)")
+    ap.add_argument("--include-extra", action="store_true",
+                    help="give every --extra-text sentence a guaranteed place, spread across sessions")
     ap.add_argument("--extra-boost", type=float, default=1.5,
                     help="score multiplier for --extra-text sentences (natural prose)")
     ap.add_argument("--out", required=True)
@@ -80,6 +82,10 @@ def main():
         # too in an encyclopedic pool like Common Voice's, but in a novel they
         # are its characters (Ernesto, onklo Vik) and read naturally.
         if re.search(r"\w-\w", s):
+            return False
+        # Typos and transliterations: ŭ only follows a or e in Esperanto
+        # ("hŭanglongbingo" is a loanword); ǔ (caron) is a mistyped ŭ.
+        if "ǔ" in s or "Ǔ" in s or re.search(r"(?<![aeAE])[ŭŬ]", s):
             return False
         # Novels play with spelling in dialogue: lisps ("aĉetiŝ ŝole"), broken
         # English ("Pa’doŭnu men"), trailing-off fragments. Keep it readable:
@@ -166,10 +172,21 @@ def main():
     # Lazy greedy: a candidate's gain only shrinks as coverage grows, so a
     # stale heap entry is an upper bound; re-score only the top until it holds.
     import heapq
-    heap = [(-gain(i), i) for i in range(len(cand))]
+    # --include-extra: every --extra-text sentence gets a guaranteed place
+    # (written for flair, they would otherwise lose to rarer-sound sentences);
+    # the greedy then fills the rest for coverage around them.
+    seeded = []
+    if args.include_extra:
+        for i, (s, units) in enumerate(cand):
+            if sources.get(s, "cv") != "cv":
+                seeded.append(s)
+                for x in units:
+                    covered[x] = covered.get(x, 0) + 1
+    seeded_set = set(seeded)
+    heap = [(-gain(i), i) for i in range(len(cand)) if cand[i][0] not in seeded_set]
     heapq.heapify(heap)
     chosen = []
-    while heap and len(chosen) < args.n:
+    while heap and len(chosen) + len(seeded) < args.n:
         neg, i = heapq.heappop(heap)
         g = gain(i)
         if heap and g < -heap[0][0] - 1e-12:
@@ -178,6 +195,18 @@ def main():
         chosen.append(cand[i][0])
         for x in cand[i][1]:
             covered[x] = covered.get(x, 0) + 1
+
+    # Spread the seeded sentences evenly, so every session has some flair
+    # (the greedy order keeps the most coverage-valuable ones early).
+    if seeded:
+        merged, step = [], (len(chosen) + len(seeded)) / len(seeded)
+        si = ci = 0
+        for pos in range(len(chosen) + len(seeded)):
+            if si < len(seeded) and (ci >= len(chosen) or pos >= si * step):
+                merged.append(seeded[si]); si += 1
+            else:
+                merged.append(chosen[ci]); ci += 1
+        chosen = merged
 
     os.makedirs(args.out, exist_ok=True)
     with open(os.path.join(args.out, "script.tsv"), "w", encoding="utf-8") as f:
