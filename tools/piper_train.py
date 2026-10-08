@@ -59,6 +59,22 @@ class ProgressPrinter(Callback):
             print(f"epoch {trainer.current_epoch} done  val_mel {float(m['val_mel']):.4f}", flush=True)
 
 
+class SaveOnEnd(Callback):
+    """Write last.ckpt when training stops, not only at epoch ends.
+
+    With --trainer.max_time the run stops mid-epoch, and Lightning's own
+    last.ckpt is then up to a full epoch old — for small datasets a big
+    slice of the training time.
+    """
+
+    def on_train_end(self, trainer, pl_module):
+        cb = trainer.checkpoint_callback
+        if cb is not None and cb.dirpath:
+            path = os.path.join(cb.dirpath, "last.ckpt")
+            trainer.save_checkpoint(path)
+            print(f"saved final checkpoint at step {trainer.global_step} → {path}", flush=True)
+
+
 class FreezeAcoustic(Callback):
     """Text phase: freeze the language-independent acoustic modules."""
 
@@ -129,6 +145,7 @@ def main():
         if getattr(c, "monitor", None) == "val_mel":
             c.save_top_k = top_k
     callbacks.append(ProgressPrinter())
+    callbacks.append(SaveOnEnd())
 
     if os.environ.get("PIPER_PHASE") == "text":
         VitsModel.training_step = text_phase_training_step
