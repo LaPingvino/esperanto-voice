@@ -24,8 +24,8 @@ def main():
     ap.add_argument("--exclude", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                       "..", "eval", "sentences.txt"),
                     help="sentences never to include (default: the test set)")
-    ap.add_argument("--top-db", type=float, default=35,
-                    help="silence trim threshold; Common Voice clips have long silent edges")
+    ap.add_argument("--top-db", type=float, default=50,
+                    help="silence trim threshold. 35 dB cut ~46 ms off word-final consonants (the -n of the accusative!); 50 keeps them")
     args = ap.parse_args()
 
     import librosa
