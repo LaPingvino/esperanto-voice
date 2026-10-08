@@ -146,8 +146,8 @@ def main():
     ap.add_argument("--max-cer", type=float, default=0.10)
     ap.add_argument("-v", action="store_true", help="print every case")
     ap.add_argument("-run", default="", help="only cases whose text matches this regex")
-    ap.add_argument("--repeats", type=int, default=3,
-                    help="renderings per case for Piper voices (noise differs each time)")
+    ap.add_argument("--repeats", type=int, default=1,
+                    help="renderings per case for Piper voices. Note: Piper turned out deterministic here (identical output per load), so >1 only repeats work")
     ap.add_argument("--no-per", action="store_true",
                     help="skip the phoneme error rate (saves loading a second model)")
     args = ap.parse_args()
