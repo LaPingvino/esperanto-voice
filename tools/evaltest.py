@@ -146,6 +146,8 @@ def main():
     ap.add_argument("--max-cer", type=float, default=0.10)
     ap.add_argument("-v", action="store_true", help="print every case")
     ap.add_argument("-run", default="", help="only cases whose text matches this regex")
+    ap.add_argument("--repeats", type=int, default=3,
+                    help="renderings per case for Piper voices (noise differs each time)")
     ap.add_argument("--no-per", action="store_true",
                     help="skip the phoneme error rate (saves loading a second model)")
     args = ap.parse_args()
@@ -158,12 +160,20 @@ def main():
 
     for voice in args.voices:
         name = re.sub(r"[^\w.-]+", "_", voice)
-        paths = render(voice, cases, os.path.join(args.out, name))
+        # Piper samples noise on every synthesis, so one rendering per case
+        # makes scores jump by a point or more between identical runs.
+        # Render it several times and score every rendering.
+        reps = args.repeats if voice.startswith("piper") else 1
+        items = []
+        for r in range(reps):
+            out = os.path.join(args.out, name) if reps == 1 else os.path.join(args.out, name, f"r{r}")
+            paths = render(voice, cases, out)
+            items += [(i, paths[i]) for i in ids]
         total_err = total_len = passed = 0
         p_err = p_len = 0
         vowel_starts = breathy = 0
-        for i in ids:
-            hyp = asr(paths[i])
+        for i, path in items:
+            hyp = asr(path)
             c = cer(cases[i], hyp)
             total_err += edit_distance(norm(cases[i]), norm(hyp))
             total_len += len(norm(cases[i]))
@@ -172,7 +182,7 @@ def main():
             per_note = ""
             if pasr:
                 want_p = phone_norm(pasr.expected(cases[i]))
-                raw_p = pasr(paths[i])
+                raw_p = pasr(path)
                 got_p = phone_norm(raw_p)
                 # Breathy onset: a vowel-initial sentence heard with a
                 # leading fricative ("x e s p e r a …").
@@ -194,9 +204,9 @@ def main():
         agg = total_err / max(1, total_len)
         per = (f"  PER {p_err / max(1, p_len):5.1%}  breathy onsets {breathy}/{vowel_starts}"
                if pasr else "")
-        status = "ok  " if passed == len(ids) else "FAIL"
-        failed_any |= passed != len(ids)
-        print(f"{status}  {voice:40s} CER {agg:5.1%}{per}  {passed}/{len(ids)} passed", flush=True)
+        status = "ok  " if passed == len(items) else "FAIL"
+        failed_any |= passed != len(items)
+        print(f"{status}  {voice:40s} CER {agg:5.1%}{per}  {passed}/{len(items)} passed", flush=True)
 
     sys.exit(1 if failed_any else 0)
 
