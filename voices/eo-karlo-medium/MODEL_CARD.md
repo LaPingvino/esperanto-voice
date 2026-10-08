@@ -20,7 +20,7 @@ echo 'Saluton, mondo!' | piper -m eo-karlo-medium.onnx -f saluton.wav
   Privat, read by J. D. Zero for LibriVox — public domain.
 * Text: [Project Gutenberg #24525](https://www.gutenberg.org/ebooks/24525) — public domain.
 * Aligned into sentence clips with `tools/prepare_librivox.py`. This v0.1
-  used only the first **4.9 minutes** (30 clips).
+  used only the first **4.9 minutes** (41 clips of at most 12 s).
 
 ## Training
 
