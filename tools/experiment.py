@@ -157,18 +157,22 @@ def main():
                           os.path.join(run, "eval"), f"piper:{onnx}"],
                          capture_output=True, text=True)
     summary = [l for l in res.stdout.splitlines() if l.startswith(("ok", "FAIL"))]
-    m = re.search(r"CER\s+([\d.]+)%\s+(\d+/\d+)", summary[-1] if summary else "")
-    cer, passed = (m.group(1), m.group(2)) if m else ("?", "?")
+    line = summary[-1] if summary else ""
+    grab = lambda pat: (re.search(pat, line) or [None, "?"])[1]
+    cer = grab(r"CER\s+([\d.]+)%")
+    per = grab(r"PER\s+([\d.]+)%")
+    breath = grab(r"breathy onsets\s+(\d+/\d+)")
+    passed = grab(r"(\d+/\d+)\s+passed")
     print(res.stdout, flush=True)
 
     new = not os.path.exists(os.path.join(args.runs, "results.tsv"))
     with open(os.path.join(args.runs, "results.tsv"), "a", newline="") as f:
         w = csv.writer(f, delimiter="\t")
         if new:
-            w.writerow(["name", "data_min", "train_min", "epochs", "cer", "passed"])
-        w.writerow([args.name, f"{got_min:.1f}", f"{train_min:.0f}", epochs, cer, passed])
+            w.writerow(["name", "data_min", "train_min", "epochs", "cer", "per", "breathy", "passed"])
+        w.writerow([args.name, f"{got_min:.1f}", f"{train_min:.0f}", epochs, cer, per, breath, passed])
     print(f"[{args.name}] data {got_min:.1f} min, trained {train_min:.0f} min, "
-          f"epochs {epochs}: CER {cer}% ({passed})", flush=True)
+          f"epochs {epochs}: CER {cer}% PER {per}% breathy {breath} ({passed})", flush=True)
 
 
 if __name__ == "__main__":

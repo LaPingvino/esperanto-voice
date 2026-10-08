@@ -161,6 +161,7 @@ def main():
         paths = render(voice, cases, os.path.join(args.out, name))
         total_err = total_len = passed = 0
         p_err = p_len = 0
+        vowel_starts = breathy = 0
         for i in ids:
             hyp = asr(paths[i])
             c = cer(cases[i], hyp)
@@ -171,7 +172,13 @@ def main():
             per_note = ""
             if pasr:
                 want_p = phone_norm(pasr.expected(cases[i]))
-                got_p = phone_norm(pasr(paths[i]))
+                raw_p = pasr(paths[i])
+                got_p = phone_norm(raw_p)
+                # Breathy onset: a vowel-initial sentence heard with a
+                # leading fricative ("x e s p e r a …").
+                if want_p[:1] in "aeiou":
+                    vowel_starts += 1
+                    breathy += raw_p.strip()[:1] in "xhsfçχθ"
                 e = edit_distance(want_p, got_p)
                 p_err += e
                 p_len += len(want_p)
@@ -185,7 +192,8 @@ def main():
                 if pasr and args.v:
                     print(f"    phones want: {want_p}\n    phones got:  {got_p}")
         agg = total_err / max(1, total_len)
-        per = f"  PER {p_err / max(1, p_len):5.1%}" if pasr else ""
+        per = (f"  PER {p_err / max(1, p_len):5.1%}  breathy onsets {breathy}/{vowel_starts}"
+               if pasr else "")
         status = "ok  " if passed == len(ids) else "FAIL"
         failed_any |= passed != len(ids)
         print(f"{status}  {voice:40s} CER {agg:5.1%}{per}  {passed}/{len(ids)} passed", flush=True)
