@@ -54,7 +54,16 @@ def main():
                     help="config.json with phoneme_id_map (default: next to src)")
     ap.add_argument("--only", default="",
                     help="comma-separated subset of target phonemes to seed (default: all)")
+    ap.add_argument("--skip", default="", help="comma-separated target phonemes to leave as in src")
+    ap.add_argument("--set", action="append", default=[], metavar="T=S1,S2",
+                    help="override a seed, e.g. --set r=ɾ (tap only: the averaged ɹ/ɾ "
+                         "start sounded hazy, Joop heard a French-like buzz)")
     args = ap.parse_args()
+    for spec in args.set:
+        tgt, srcs = spec.split("=", 1)
+        SEEDS[tgt] = srcs.split(",")
+    for tgt in filter(None, args.skip.split(",")):
+        SEEDS.pop(tgt, None)
 
     import torch
     ck = torch.load(args.src, map_location="cpu", weights_only=False)
