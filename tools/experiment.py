@@ -75,7 +75,12 @@ def main():
     ap.add_argument("--minutes", type=float, default=0,
                     help="take the first N minutes of clips (ignored with --csv)")
     ap.add_argument("--csv", help="use this clip list instead, e.g. from select_coverage.py")
-    ap.add_argument("--train-minutes", type=int, default=30)
+    ap.add_argument("--train-steps", type=int, default=1800,
+                    help="optimizer steps to train (Lightning counts generator and "
+                         "discriminator steps separately; 1800 ≈ v0.1's 900 batches). "
+                         "Steps, not minutes, so a busy shared server can't shorten a run.")
+    ap.add_argument("--train-minutes", type=int, default=24 * 60,
+                    help="wall-clock safety cap only")
     ap.add_argument("--name", required=True)
     ap.add_argument("--runs", default="runs")
     ap.add_argument("--base", default="base/base_model.ckpt")
@@ -117,9 +122,10 @@ def main():
            "--data.num_workers", "0",
            "--model.warmstart_ckpt", args.base,
            "--trainer.accelerator", "cpu",
-           "--trainer.max_time", f"00:00:{args.train_minutes:02d}:00"
-           if args.train_minutes < 60 else
-           f"00:{args.train_minutes // 60:02d}:{args.train_minutes % 60:02d}:00",
+           "--trainer.max_steps", str(args.train_steps),
+           "--trainer.max_time",
+           f"{args.train_minutes // 1440:02d}:{args.train_minutes % 1440 // 60:02d}:"
+           f"{args.train_minutes % 60:02d}:00",
            "--trainer.default_root_dir", run,
            "--trainer.check_val_every_n_epoch", str(args.val_every),
            ] + BASE_ARGS
