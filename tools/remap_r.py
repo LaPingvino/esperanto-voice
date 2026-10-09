@@ -59,9 +59,18 @@ def main():
 
     m["r"] = seq(args.middle)
     m["ɾ"] = seq(args.initial)
+    glide_cluster = None
     if not args.keep_glide and "ʲ" in m:
-        m["ʲ"] = []          # a symbol may map to no ids at all: the glide simply disappears
+        # Piper's espeak inserts ʲ only after i (ki-el, hodi-aŭ, ti-u): merge
+        # i+ʲ into a symbol that maps to plain i. (Mapping ʲ to no ids works
+        # at synthesis but crashes Piper's training data prep.) A stray ʲ
+        # elsewhere becomes a pause token.
+        glide_cluster = ("i", "ʲ")
+        m["iʲ"] = [orig["i"]]
+        m["ʲ"] = [pad]
     clusters = {tuple(c) for c in cfg.get("vowel_clusters", [])}
+    if glide_cluster:
+        clusters.add(glide_cluster)
     for group, spec in ((VOICELESS, args.after_voiceless), (VOICED, args.after_voiced)):
         after = seq(spec)
         for c in group:
