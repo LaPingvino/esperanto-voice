@@ -37,6 +37,9 @@ def main():
     ap.add_argument("--after-voiceless", default="ɾ",
                     help="after p t k f ĥ s ŝ: the English ɹ carries an h-like puff there (try/pray)")
     ap.add_argument("--after-voiced", default="ɹ")
+    ap.add_argument("--keep-glide", action="store_true",
+                    help="keep the ʲ glide Piper's espeak inserts in kiel/tiu/lia/hodiaŭ; by "
+                         "default it is mapped to nothing (Joop: clearly better, esp. hodiaŭ)")
     args = ap.parse_args()
 
     cfg = json.load(open(args.src, encoding="utf-8"))
@@ -56,6 +59,8 @@ def main():
 
     m["r"] = seq(args.middle)
     m["ɾ"] = seq(args.initial)
+    if not args.keep_glide and "ʲ" in m:
+        m["ʲ"] = []          # a symbol may map to no ids at all: the glide simply disappears
     clusters = {tuple(c) for c in cfg.get("vowel_clusters", [])}
     for group, spec in ((VOICELESS, args.after_voiceless), (VOICED, args.after_voiced)):
         after = seq(spec)
