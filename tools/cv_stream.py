@@ -13,7 +13,7 @@ streams the .tar.gz in one sequential pass, twice at most:
         up/down votes, gender/age/accent fields. Writes OUTDIR/speakers.tsv,
         sorted by validated hours.
 
-    cv_stream.py clips ARCHIVE OUTDIR --speakers ids.txt [--min-up 2]
+    cv_stream.py clips ARCHIVE|- OUTDIR --speakers ids.txt [--min-up 2]
         Extract only the validated clips of the listed client_ids, plus a
         Piper-style OUTDIR/<speaker>/metadata.csv (clip|sentence).
 
@@ -32,7 +32,10 @@ csv.field_size_limit(10 ** 9)
 
 
 def stream(archive):
-    # "r|gz": strictly sequential reading, no seeking, constant memory.
+    # "r|gz": strictly sequential reading, no seeking, constant memory — so the
+    # archive can also be piped in ("-"), e.g. over ssh, without storing it.
+    if archive == "-":
+        return tarfile.open(fileobj=sys.stdin.buffer, mode="r|gz")
     return tarfile.open(archive, mode="r|gz")
 
 
