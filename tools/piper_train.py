@@ -19,6 +19,11 @@ Fixes and additions over `python -m piper.train`:
   decoder and skips the decoder and both discriminators entirely. Validation
   still runs the full model, so val_mel stays comparable across phases.
   Polish the voice afterwards with a normal (full) run from that checkpoint.
+- PIPER_TRAIN_ROWS=id,id,...: the narrowest phase (implies the text phase's
+  losses). Only these rows of the phoneme embedding table learn — e.g. the
+  one sound a base voice never had (h in an Italian voice). Every other
+  weight stays bit-for-bit as it was, so the voice's timbre cannot drift;
+  even a short run on a "hazy" narrator only teaches the new sound.
 
 Usage is identical to `python -m piper.train`:  piper_train.py fit --data... --model...
 """
@@ -107,6 +112,28 @@ class FreezeAcoustic(Callback):
               f"(posterior encoder and decoder frozen, discriminators skipped)", flush=True)
 
 
+class TrainRowsOnly(Callback):
+    """PIPER_TRAIN_ROWS: freeze everything but some phoneme embedding rows."""
+
+    def __init__(self, rows):
+        self.rows = rows
+
+    def on_train_start(self, trainer, pl_module):
+        g = pl_module.model_g
+        g.requires_grad_(False)
+        g.eval()                              # no dropout noise in the frozen layers
+        emb = g.enc_p.emb.weight
+        emb.requires_grad_(True)
+        mask = torch.zeros_like(emb)
+        mask[self.rows] = 1.0
+        emb.register_hook(lambda grad: grad * mask)
+        # AdamW's weight decay would still shrink the masked rows: keep a copy
+        # and put them back after every step (text_phase_training_step).
+        pl_module._frozen_emb = (emb.detach().clone(), mask.bool())
+        print(f"row phase: training embedding rows {self.rows} only "
+              f"({len(self.rows) * emb.shape[1]} parameters)", flush=True)
+
+
 def text_phase_training_step(self, batch, batch_idx):
     """KL + duration losses only; mirrors SynthesizerTrn.forward minus the decoder."""
     opt_g, _opt_d = self.optimizers()
@@ -154,6 +181,11 @@ def text_phase_training_step(self, batch, batch_idx):
     opt_g.zero_grad()
     self.manual_backward(loss)
     opt_g.step()
+    frozen = getattr(self, "_frozen_emb", None)
+    if frozen is not None:
+        with torch.no_grad():
+            emb = g_model.enc_p.emb.weight
+            emb.copy_(torch.where(frozen[1], emb, frozen[0]))
 
 
 def main():
@@ -167,7 +199,11 @@ def main():
     callbacks.append(SaveOnEnd())
     callbacks.append(SaveLatest())
 
-    if os.environ.get("PIPER_PHASE") == "text":
+    rows = os.environ.get("PIPER_TRAIN_ROWS")
+    if rows:
+        VitsModel.training_step = text_phase_training_step
+        callbacks.append(TrainRowsOnly([int(r) for r in rows.split(",")]))
+    elif os.environ.get("PIPER_PHASE") == "text":
         VitsModel.training_step = text_phase_training_step
         callbacks.append(FreezeAcoustic())
 
